@@ -42,6 +42,8 @@ public:
     explicit CopyApp(QString origin, QString destination, QString app = QString(), int timeToWait = 5000, QWidget *parent = 0);
     ~CopyApp();
 
+    bool getStarted() const;
+
 private slots:
     void doUpdate();
     void onNewInfo(QString txt);
@@ -60,6 +62,7 @@ private:
     bool copyFiles(const QStringList &fileList, const QString &originPath, const QString &destinationPath);
     bool checkPermissions(QString &path);
     void startAsSudo();
+    bool started;
 signals:
     void currentOperation(QString);
     void infoMessage(QString);

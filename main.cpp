@@ -47,7 +47,9 @@ int main(int argc, char *argv[])
     // Process the actual command line arguments given by the user
     parser.process(app);
     const QStringList args = parser.positionalArguments();
-    CopyApp w(args.at(0),args.at(1), args.at(2), parser.value("w").toInt());
+    CopyApp w(args.value(0),args.value(1), args.value(2), parser.value("w").toInt());
+    if(!w.getStarted())
+        return -1;
     QRect screenGeometry = QApplication::desktop()->screenGeometry();
     int x = (screenGeometry.width() - w.width()) / 2;
     int y = (screenGeometry.height() - w.height()) / 2;
