@@ -39,8 +39,13 @@ CopyApp::CopyApp(QString origin, QString destination, QString app, int timeToWai
     origin(origin),
     destination(destination),
     appToRun(app),
-    timeToWait(timeToWait)
+    timeToWait(timeToWait),
+    started(false)
 {
+    if(origin.isEmpty() | destination.isEmpty()) {
+        QMessageBox::warning(this, "ERROR", "INVALID COMMAND LINE OPTIONS");
+        return;
+    }
     qDebug() << origin << destination;
     ui->setupUi(this);
     emit infoMessage(tr("Waiting for application to close"));
@@ -48,6 +53,7 @@ CopyApp::CopyApp(QString origin, QString destination, QString app, int timeToWai
     connect(this, &CopyApp::infoMessage, this, &CopyApp::onNewInfo);
     connect(this, &CopyApp::currentOperation, this, &CopyApp::onNewOperation);
     connect(this, &CopyApp::progress, this, &CopyApp::onProgress);
+    started = true;
 }
 
 CopyApp::~CopyApp()
@@ -61,7 +67,7 @@ void CopyApp::doUpdate()
     if(partial == 0) {
         if(!checkPermissions(destination)) {
             startAsSudo();
-            qApp->quit();
+            QApplication::quit();
             return;
         }
     }
@@ -77,10 +83,11 @@ void CopyApp::doUpdate()
     QStringList localFileList = processFileList(destination);
     emit currentOperation(tr("Looking for remote file list info"));
     QStringList remoteFileList = processFileList(origin);
+    if(localFileList.isEmpty() || remoteFileList.isEmpty())
+        return;
     emit currentOperation(tr("Deleting old files..."));
     bool result = true;
     result &= deleteFiles(localFileList, destination);
-    QMessageBox::information(this, "wait","pause");
     emit currentOperation(tr("Copying new files..."));
     result &= copyFiles(remoteFileList, origin, destination);
     QString resultStr;
@@ -93,8 +100,8 @@ void CopyApp::doUpdate()
     QMessageBox::information(this, tr("Update finished"), resultStr);
     if(!appToRun.isEmpty()) {
         QProcess::startDetached(QDir(destination).filePath(appToRun));
-        qApp->quit();
     }
+    QApplication::quit();
 }
 
 QStringList CopyApp::processFileList(const QString &path)
@@ -106,7 +113,7 @@ QStringList CopyApp::processFileList(const QString &path)
         if(!file.open(QIODevice::ReadOnly)) {
             emit infoMessage(tr("Could not open filelist.lst file"));
             QMessageBox::critical(this, tr("Error"), tr("Could not open a required file! Quiting."));
-            qApp->quit();
+            QApplication::quit();
             return ret;
         }
         else {
@@ -116,8 +123,8 @@ QStringList CopyApp::processFileList(const QString &path)
     }
     else {
         emit infoMessage(tr("Could not find filelist.lst file"));
-        QMessageBox::critical(this, tr("Error"), tr("Could not find a required file! Quiting."));
-        qApp->quit();
+        QMessageBox::critical(this, tr("Error"), tr("Could not find a required file! Quiting.") + file.fileName());
+        QApplication::quit();
         return ret;
     }
     return ret;
@@ -182,7 +189,7 @@ bool CopyApp::checkPermissions(QString &path)
     }
     else {
         Q_ASSERT(0);
-        qApp->quit();
+        QApplication::quit();
     }
     return false;
 }
@@ -203,11 +210,16 @@ void CopyApp::startAsSudo()
     }
     if(sudoApp.isEmpty()) {
         QMessageBox::critical(this, tr("Wrong permissions"), tr("The target directory permissions require administrator privileges but neither kdesudo or gksudo was found. Try running the application you want to update as sudo. Quiting now!"));
-        qApp->quit();
+        QApplication::quit();
     }
     QMessageBox::critical(this, tr("Wrong permissions"), tr("The target directory permissions requires this application to restart with administrator privileges!"));
     QProcess::startDetached(sudoApp.simplified(), QStringList() << QString("%0 %1 %2 %4 -w=0").arg(QApplication::applicationFilePath()).arg(origin).arg(destination).arg(appToRun));
 }
+bool CopyApp::getStarted() const
+{
+    return started;
+}
+
 #endif
 
 void CopyApp::onNewInfo(QString txt)
