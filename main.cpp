@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
     parser.addPositionalArgument("source", QCoreApplication::translate("main", "Source directory."));
     parser.addPositionalArgument("destination", QCoreApplication::translate("main", "Destination directory."));
-    parser.addPositionalArgument("app",  QCoreApplication::translate("main", "the name of the application to run after the copy."));
+    parser.addPositionalArgument("app",  QCoreApplication::translate("main", "The name of the application to run after the copy."));
     parser.addOption(QCommandLineOption("w",  QCoreApplication::translate("main", "time to wait before starting the copying process."), "w", "5000"));
 
     // Process the actual command line arguments given by the user
