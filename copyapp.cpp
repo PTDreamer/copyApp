@@ -33,6 +33,12 @@
 #include <QMessageBox>
 #include <QProcess>
 
+#ifdef Q_OS_WIN
+#include "qt_windows.h"
+#include "qwindowdefs_win.h"
+#include <shellapi.h>
+#endif
+
 CopyApp::CopyApp(QString origin, QString destination, QString app, int timeToWait, QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::CopyApp),
@@ -80,14 +86,14 @@ void CopyApp::doUpdate()
         }
     }
     emit currentOperation(tr("Looking for local file list info"));
-    QStringList localFileList = processFileList(destination);
+    QStringList destinationFileList = processFileList(destination);
     emit currentOperation(tr("Looking for remote file list info"));
     QStringList remoteFileList = processFileList(origin);
-    if(localFileList.isEmpty() || remoteFileList.isEmpty())
+    if(destinationFileList.isEmpty() || remoteFileList.isEmpty())
         return;
     emit currentOperation(tr("Deleting old files..."));
     bool result = true;
-    result &= deleteFiles(localFileList, destination);
+    result &= deleteFiles(destinationFileList, destination);
     emit currentOperation(tr("Copying new files..."));
     result &= copyFiles(remoteFileList, origin, destination);
     QString resultStr;
@@ -162,11 +168,11 @@ bool CopyApp::copyFiles(const QStringList &fileList, const QString &originPath, 
     foreach (QString fileName, fileList) {
         if(fileName.isEmpty())
             continue;
-        QString remotePath = QDir(originPath).filePath(fileName);
-        QString localPath = QDir(destinationPath).filePath(fileName);
-        bool result = QFile::copy(remotePath, localPath);
+        QString m_originPath = QDir(originPath).filePath(fileName);
+        QString m_destinationPath = QDir(destinationPath).filePath(fileName);
+        bool result = QFile::copy(m_originPath, m_destinationPath);
         if(!result) {
-            tempStr = tempStr + localPath + "\n";
+            tempStr = tempStr + m_destinationPath + "\n";
             ret = false;
         }
         infoMessage(QString(tr("Copying %0")).arg(fileName));
@@ -194,6 +200,14 @@ bool CopyApp::checkPermissions(QString &path)
     return false;
 }
 
+#ifdef Q_OS_WIN
+void CopyApp::startAsSudo()
+{
+    QString arguments = QString("%0 %1 %2 w=0").arg(origin).arg(destination).arg(appToRun);
+    ShellExecute(0, L"runas", reinterpret_cast<const WCHAR*>(QApplication::applicationFilePath().utf16()), reinterpret_cast<const WCHAR*>(arguments.utf16()), reinterpret_cast<const WCHAR*>(QApplication::applicationDirPath().utf16()), SW_SHOWNORMAL);
+}
+#endif
+
 #ifdef Q_OS_LINUX
 void CopyApp::startAsSudo()
 {
@@ -215,12 +229,13 @@ void CopyApp::startAsSudo()
     QMessageBox::critical(this, tr("Wrong permissions"), tr("The target directory permissions requires this application to restart with administrator privileges!"));
     QProcess::startDetached(sudoApp.simplified(), QStringList() << QString("%0 %1 %2 %4 -w=0").arg(QApplication::applicationFilePath()).arg(origin).arg(destination).arg(appToRun));
 }
+#endif
+
 bool CopyApp::getStarted() const
 {
     return started;
 }
 
-#endif
 
 void CopyApp::onNewInfo(QString txt)
 {
