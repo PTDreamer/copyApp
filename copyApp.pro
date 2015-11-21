@@ -6,6 +6,10 @@ TARGET = copyApp.bin
 win32 {
 TARGET = copyApp
 }
+macx {
+TARGET = copyApp
+}
+
 TEMPLATE = app
 
 

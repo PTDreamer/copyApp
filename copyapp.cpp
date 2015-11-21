@@ -105,7 +105,11 @@ void CopyApp::doUpdate()
         resultStr = resultStr + tr("Click ok to restart application");
     QMessageBox::information(this, tr("Update finished"), resultStr);
     if(!appToRun.isEmpty()) {
+ #ifdef Q_OS_OSX
+        QProcess::startDetached("open", QStringList() << QDir(destination).filePath(appToRun));
+#else
         QProcess::startDetached(QDir(destination).filePath(appToRun));
+#endif
     }
     QApplication::quit();
 }
@@ -145,7 +149,12 @@ bool CopyApp::deleteFiles(const QStringList &fileList, const QString &path)
     foreach (QString fileName, fileList) {
         if(fileName.isEmpty())
             continue;
-        bool success = QFile(QDir(path).filePath(fileName)).remove();
+        QFileInfo info(QDir(path).filePath(fileName));
+        bool success = true;
+        if(info.isDir())
+            continue;
+        else
+            success = QFile(QDir(path).filePath(fileName)).remove();
         infoMessage(QString(tr("Deleting %0")).arg(fileName));
         ++filesProcessed;
         emit progress(filesProcessed * 100 / totalFilesToProcess);
@@ -170,7 +179,12 @@ bool CopyApp::copyFiles(const QStringList &fileList, const QString &originPath, 
             continue;
         QString m_originPath = QDir(originPath).filePath(fileName);
         QString m_destinationPath = QDir(destinationPath).filePath(fileName);
-        bool result = QFile::copy(m_originPath, m_destinationPath);
+        QFileInfo info(m_originPath);
+        bool result = true;
+        if(info.isDir())
+            QDir().mkdir(m_destinationPath);
+        else
+            result = QFile::copy(m_originPath, m_destinationPath);
         if(!result) {
             tempStr = tempStr + m_destinationPath + "\n";
             ret = false;
@@ -230,7 +244,12 @@ void CopyApp::startAsSudo()
     QProcess::startDetached(sudoApp.simplified(), QStringList() << QString("%0 %1 %2 %4 -w=0").arg(QApplication::applicationFilePath()).arg(origin).arg(destination).arg(appToRun));
 }
 #endif
+#ifdef Q_OS_MACX
+void CopyApp::startAsSudo()
+{
 
+}
+#endif
 bool CopyApp::getStarted() const
 {
     return started;
